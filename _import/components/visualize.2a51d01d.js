@@ -1,8 +1,8 @@
 import * as d3 from "../../_node/d3@7.9.0/index.ca4e4e1f.js";
-import { parseEnemySizes } from "./level-config.d1c252d6.js";
-import { Toggle, createCollapsiblePanel, createLegendRow, createSliderMarkers, createStageButtons, drawStageBoundaryMarkers, makeLegendArrowGlyph, makeLegendGlyph, makeLegendGradientGlyph, makeLegendStripesGlyph } from "./viewer-controls.4db47ea0.js";
-import { createEnemyVisualBuilder, getEnemyGlyphSize, getEnemyGlyphSource, greyFadeWindow } from "./viewer-enemies.ebbd2b62.js";
-import { buildBulletArrows, buildEnemyShots, enemyBulletPresenceByAnchor } from "./viewer-bullets.6d5e1844.js";
+import { parseEnemySizes } from "./level-config.c23b3f90.js";
+import { Toggle, createCollapsiblePanel, createLegendRow, createSliderMarkers, createStageButtons, drawStageBoundaryMarkers, makeLegendArrowGlyph, makeLegendGlyph, makeLegendGradientGlyph, makeLegendStripesGlyph, styleControlButton } from "./viewer-controls.93e6cd4b.js";
+import { createEnemyVisualBuilder, getEnemyGlyphSize, getEnemyGlyphSource, greyFadeWindow } from "./viewer-enemies.e1df4757.js";
+import { buildBulletArrows, buildEnemyShots, enemyBulletPresenceByAnchor } from "./viewer-bullets.e85fb883.js";
 import { BAND_BLUR_RADIUS, HEATMAP_COLORS, createEnemyHeatmapBuilder } from "./viewer-heatmap.2ff45294.js";
 import { clamp, fadeOpacity, findCurrentIndex, flattenEnemyPaths, makePathD, stageIndexAt, trailOpacity, validTimedPoints } from "./viewer-helpers.1421b95f.js";
 
@@ -11,7 +11,9 @@ const NS = "http://www.w3.org/2000/svg";
 // aggregated route color, shared by the main map, the minimap and the legend's Aggregate entry.
 // There's only one aggregate: build_aggregate_data.py pools every player's route into it and
 // stores it under the primary (cup) player's type.
-const AGG_CUP_COLOR = "rgba(255, 0, 0, 0.35)";
+const AGG_CUP_COLOR = "rgba(180, 140, 90, 0.6)";
+// dash pattern (dash, gap) for the part of the player trail ahead of the current time
+const PLAYER_FUTURE_DASH = "14 12";
 
 // the map image, plus a white wash on top that bleaches it so paths/heatmap drawn over it read
 // more clearly
@@ -321,6 +323,23 @@ export async function createMapViewer({
 
   sliderWrapper.append(slider, sliderMarkers);
 
+  // play/pause button on the same row as the slider (the slider takes the rest of the width, so
+  // its markers stay aligned with it)
+  const playButton = document.createElement('button');
+  playButton.type = 'button';
+  playButton.textContent = '▶';
+  playButton.title = 'Play';
+  styleControlButton(playButton);
+  // fixed min width so swapping ▶/⏸ doesn't shift the slider
+  Object.assign(playButton.style, { flex: '0 0 auto', minWidth: '40px' });
+
+  sliderWrapper.style.flex = '1 1 0';
+  sliderWrapper.style.minWidth = '0';
+
+  const sliderRow = document.createElement('div');
+  Object.assign(sliderRow.style, { display: 'flex', alignItems: 'center', gap: '8px', width: '100%' });
+  sliderRow.append(playButton, sliderWrapper);
+
   /* ---------------- STAGES ---------------- */
   // run.stage_starts (see coords_transform.stage_start_times) is only present on levels with
   // STAGES (e.g. Wally Warbles) -- absent on Forest Follies, which leaves stageStarts empty and
@@ -396,6 +415,7 @@ export async function createMapViewer({
     neverFadeEnemyTypes: levelConfig.neverFadeEnemyTypes,
     holdLastPositionEnemyTypes: levelConfig.holdLastPositionEnemyTypes,
     minimizingEnemyTypes: levelConfig.minimizingEnemyTypes,
+    bulletEnemyTypes: levelConfig.bulletEnemyTypes,
     minimizingChainDistance: levelConfig.minimizingChainDistance,
     enemyInstanceXThreshold: levelConfig.enemyInstanceXThreshold,
     stationaryInstanceThreshold: levelConfig.stationaryInstanceThreshold,
@@ -641,6 +661,9 @@ export async function createMapViewer({
       const end = currentTime + WINDOW_DELTA;
       const segs = [];
       let fallbackSegment = null;
+      // running path length, used as stroke-dashoffset so the dash pattern of the future (dashed)
+      // part continues across the individual per-sample <line>s instead of restarting on each
+      let pathLength = 0;
       for (let i = 1; i < points.length; i++) {
         const a = points[i-1];
         const b = points[i];
@@ -649,7 +672,9 @@ export async function createMapViewer({
         const t2 = b[2];
         if (t1 == null || t2 == null) continue;
         const tmid = (t1 + t2) / 2;
-        const segment = { id: `${who}-${i-1}`, x1: a[0], y1: a[1], x2: b[0], y2: b[1], points: [[a[0], a[1]], [b[0], b[1]]], color, strokeWidth, opacity: trailOpacity(currentTime, tmid, WINDOW_DELTA), who, t: tmid };
+        const dashOffset = -pathLength;
+        pathLength += Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const segment = { id: `${who}-${i-1}`, x1: a[0], y1: a[1], x2: b[0], y2: b[1], points: [[a[0], a[1]], [b[0], b[1]]], color, strokeWidth, opacity: trailOpacity(currentTime, tmid, WINDOW_DELTA), who, t: tmid, future: tmid > currentTime, dashOffset };
         if (!fallbackSegment) fallbackSegment = segment;
         if (Math.max(t1, t2) < start) continue;
         if (Math.min(t1, t2) > end) continue;
@@ -777,7 +802,7 @@ export async function createMapViewer({
 
     const aggregatePaths = [];
     if (showAggregateToggle.value && aggCup.length > 1) {
-      aggregatePaths.push({ id: 'agg-cup', points: aggCup, color: AGG_CUP_COLOR, width: 10 });
+      aggregatePaths.push({ id: 'agg-cup', points: aggCup, color: AGG_CUP_COLOR, width: 30 });
     }
 
     const aggregateSel = mainSel.selectAll('.aggregate-path').data(aggregatePaths, d => d.id);
@@ -833,7 +858,7 @@ export async function createMapViewer({
         .attr('stroke', d => d.stroke)
         .attr('stroke-width', d => d.width)
         .attr('stroke-opacity', d => d.opacity ?? 1)
-        .attr('stroke-linecap', 'round')
+        .attr('stroke-linecap', 'butt')
         .attr('stroke-linejoin', 'round'),
       update => update
         .attr('d', d => makePathD(d.points))
@@ -918,7 +943,11 @@ export async function createMapViewer({
           .attr('y', -(h + 16) / 2 - 6)
           .text(d.label != null ? d.label : '');
         const sprite = this.querySelector('.enemy-glyph-sprite');
-        if (sprite) sprite.setAttribute('src', getEnemyGlyphSource(d.type, enemySprites, spriteUrls, levelConfig.enemySpritesFallbackKey));
+        if (sprite) {
+          sprite.setAttribute('src', getEnemyGlyphSource(d.type, enemySprites, spriteUrls, levelConfig.enemySpritesFallbackKey));
+          // an undetected (greyed) enemy's sprite greys out along with its badge
+          sprite.style.filter = d.active === false ? 'grayscale(1)' : 'none';
+        }
       });
 
     // an enemy bullet's arrow sits directly under its shooter's glyph: above everything that
@@ -938,14 +967,18 @@ export async function createMapViewer({
         .attr('x2', d=>d.x2).attr('y2', d=>d.y2)
         .attr('stroke', d=>d.color)
         .attr('stroke-width', d=>d.strokeWidth)
-        .attr('stroke-linecap','round')
-        .attr('stroke-opacity', d=>d.opacity),
+        .attr('stroke-linecap','butt')
+        .attr('stroke-opacity', d=>d.opacity)
+        .attr('stroke-dasharray', d => d.future ? PLAYER_FUTURE_DASH : null)
+        .attr('stroke-dashoffset', d => d.future ? d.dashOffset : null),
       update => update
         .attr('x1', d=>d.x1).attr('y1', d=>d.y1)
         .attr('x2', d=>d.x2).attr('y2', d=>d.y2)
         .attr('stroke', d=>d.color)
         .attr('stroke-width', d=>d.strokeWidth)
-        .attr('stroke-opacity', d=>d.opacity),
+        .attr('stroke-opacity', d=>d.opacity)
+        .attr('stroke-dasharray', d => d.future ? PLAYER_FUTURE_DASH : null)
+        .attr('stroke-dashoffset', d => d.future ? d.dashOffset : null),
       exit => exit.remove()
     );
 
@@ -1135,6 +1168,50 @@ export async function createMapViewer({
   /* ---------------- SLIDER EVENTS ---------------- */
   slider.addEventListener('input', () => { currentTime = Number(slider.value); render(); });
 
+  // playback: times are frame numbers and Cuphead runs at 60 fps, so playback advances 60 time
+  // units per real second. Dragging the slider or picking a stage while playing just moves
+  // currentTime, and playback carries on from there.
+  const PLAYBACK_UNITS_PER_SECOND = 60;
+  let playing = false;
+  let playbackFrameId = null;
+  let lastFrameTimestamp = null;
+
+  function setPlaying(value) {
+    playing = value;
+    playButton.textContent = playing ? '⏸' : '▶';
+    playButton.title = playing ? 'Pause' : 'Play';
+    cancelAnimationFrame(playbackFrameId);
+    playbackFrameId = null;
+    if (playing) {
+      lastFrameTimestamp = null;
+      playbackFrameId = requestAnimationFrame(playbackStep);
+    }
+  }
+
+  function playbackStep(timestamp) {
+    // the viewer is replaced (not reused) when another run is selected -- stop once it's gone
+    if (!playing || !slider.isConnected) { playing = false; return; }
+    if (lastFrameTimestamp !== null) {
+      const elapsedSeconds = (timestamp - lastFrameTimestamp) / 1000;
+      currentTime = Math.min(maxTime, currentTime + elapsedSeconds * PLAYBACK_UNITS_PER_SECOND);
+      slider.value = currentTime;
+      render();
+    }
+    lastFrameTimestamp = timestamp;
+    if (currentTime >= maxTime) { setPlaying(false); return; }
+    playbackFrameId = requestAnimationFrame(playbackStep);
+  }
+
+  playButton.addEventListener('click', () => {
+    // pressing play at the end restarts from the beginning
+    if (!playing && currentTime >= maxTime) {
+      currentTime = startTime;
+      slider.value = startTime;
+      render();
+    }
+    setPlaying(!playing);
+  });
+
   /* ---------------- INITIAL RENDER ---------------- */
   render();
   setSliderMarkers();
@@ -1155,8 +1232,10 @@ export async function createMapViewer({
   container.style.flexDirection = 'column';
   container.style.gap = '10px';
 
+  // minimap sits between the main map and the time slider
+  container.append(mainWrapper);
   if (showMinimap) container.append(miniSvg);
-  container.append(mainWrapper, sliderWrapper);
+  container.append(sliderRow);
   if (stageButtons) container.append(stageButtons.row);
 
   const rerenderFromControls = () => {
@@ -1177,7 +1256,17 @@ export async function createMapViewer({
   }
   const enemyLegendSpriteKey = levelConfig.enemyLegendSpriteKey
     ?? Object.values(levelConfig.enemyGlyphSources).find((spriteKey) => spriteUrls[spriteKey]);
-  legendBody.appendChild(createLegendRow({ label: 'Enemies', color: '#40e0d0', getter: () => showEnemyToggle.value, setter: v => { showEnemyToggle.value = v; }, glyphNode: makeLegendGlyph(enemyLegendSpriteKey ? spriteUrls[enemyLegendSpriteKey] : hitSprites.C, 'rgba(64, 224, 208, 0.18)', '#40e0d0'), onChange: rerenderFromControls }));
+  // junk is drawn as part of the enemy layer, so its row shares showEnemyToggle -- clicking either
+  // row toggles both, and each restyles the other to keep them in sync
+  const junkSpriteUrl = levelConfig.junkLegendSpriteKey ? spriteUrls[levelConfig.junkLegendSpriteKey] : null;
+  let junkRow = null;
+  const enemyRow = createLegendRow({ label: 'Enemies', color: '#40e0d0', getter: () => showEnemyToggle.value, setter: v => { showEnemyToggle.value = v; }, glyphNode: makeLegendGlyph(enemyLegendSpriteKey ? spriteUrls[enemyLegendSpriteKey] : hitSprites.C, 'rgba(64, 224, 208, 0.18)', '#40e0d0'), onChange: () => { junkRow?.refresh(); rerenderFromControls(); } });
+  legendBody.appendChild(enemyRow);
+  if (junkSpriteUrl) {
+    // darker turquoise to match the bullets' own badge on the map (ACTIVE_BULLET_COLOR)
+    junkRow = createLegendRow({ label: 'Enemy Bullet', color: '#0069a0', getter: () => showEnemyToggle.value, setter: v => { showEnemyToggle.value = v; }, glyphNode: makeLegendGlyph(junkSpriteUrl, 'rgba(0, 105, 160, 0.18)', '#0069a0'), onChange: () => { enemyRow.refresh(); rerenderFromControls(); } });
+    legendBody.appendChild(junkRow);
+  }
   legendBody.appendChild(createLegendRow({ label: 'Enemy heatmap', color: HEATMAP_COLORS[HEATMAP_COLORS.length - 1], getter: () => showHeatmapToggle.value, setter: v => { showHeatmapToggle.value = v; }, glyphNode: makeLegendGradientGlyph(HEATMAP_COLORS), onChange: rerenderFromControls }));
   if (Object.keys(bulletConfig).length > 0) {
     legendBody.appendChild(createLegendRow({ label: 'Bullet direction', color: '#ff0000', getter: () => showBulletToggle.value, setter: v => { showBulletToggle.value = v; }, glyphNode: makeLegendArrowGlyph('#ff0000'), onChange: rerenderFromControls }));

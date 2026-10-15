@@ -65,6 +65,9 @@ export const WALLY_WARBLES_LEVEL_CONFIG = {
   // actually an enemy rather than a JUNK pickup, so the Enemy Deaths stat (visualize.js) doesn't
   // count an apple/egg/heart/etc. disappearing as if it were a death.
   countableEnemyTypes: ["17", "20", "8", "11"],
+  // every JUNK type counts as an enemy bullet -- its live glyph badge gets a darker turquoise than
+  // the enemies' (see ACTIVE_BULLET_COLOR in viewer-enemies.js)
+  bulletEnemyTypes: ["0", "3", "4", "5", "6", "12", "13", "15", "19", "22"],
   // see level-config-forest-follies.js's bulletConfig -- only the player's own shots here, matching
   // constants_wally_warbles.py's BULLET_KEYS (enemy bullets come from moving bosses, which the
   // arrow code can't anchor to yet).
@@ -82,6 +85,8 @@ export const WALLY_WARBLES_LEVEL_CONFIG = {
   defaultGlyphSize: { w: 68, h: 68 },
   enemySpritesFallbackKey: "junk",
   enemyLegendSpriteKey: "willy",
+  // gets its own legend row, coupled to the Enemies toggle since junk is drawn as part of that layer
+  junkLegendSpriteKey: "junk",
   // matches constants_wally_warbles.py's STAGES order -- a run's data[0].stage_starts is
   // positional against this same list. Forest Follies has no stages, so its level config simply
   // has no stageNames, and visualize.js treats that as "nothing to mark".

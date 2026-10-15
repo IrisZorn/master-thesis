@@ -294,6 +294,36 @@ export function drawStageBoundaryMarkers({ layer, startTime, maxTime, stageStart
   }
 }
 
+// base look shared by the stage buttons and the play button, matching the floating panels
+const CONTROL_BUTTON_STYLE = {
+  background: "white",
+  color: "#111827",
+  border: "1px solid #ccc",
+  borderRadius: "4px",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+  padding: "5px 12px",
+  fontFamily: "sans-serif",
+  fontSize: "13px",
+  cursor: "pointer",
+  transition: "background 0.12s, border-color 0.12s, transform 0.06s",
+};
+
+// a standalone button (no active state) in the stage-button look, with the same hover/press feedback
+export function styleControlButton(button) {
+  Object.assign(button.style, CONTROL_BUTTON_STYLE);
+  button.addEventListener("mouseenter", () => {
+    button.style.background = "#f3f4f6";
+    button.style.borderColor = "#9ca3af";
+  });
+  button.addEventListener("mouseleave", () => {
+    button.style.background = "white";
+    button.style.borderColor = "#ccc";
+    button.style.transform = "none";
+  });
+  button.addEventListener("mousedown", () => { button.style.transform = "translateY(1px)"; });
+  button.addEventListener("mouseup", () => { button.style.transform = "none"; });
+}
+
 // one button per stage the run actually reached (stage_start_times leaves a stage null when the
 // run ended before it began) -- clicking jumps the timeslider to that stage's start via onSelect.
 // Styled to match the floating panels (see createCollapsiblePanel); setActiveStage highlights the
@@ -325,16 +355,7 @@ export function createStageButtons({ stageStarts, stageNames = [], onSelect }) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = stageNames[i] || `Stage ${i + 1}`;
-    Object.assign(button.style, {
-      border: "1px solid #ccc",
-      borderRadius: "4px",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-      padding: "5px 12px",
-      fontFamily: "sans-serif",
-      fontSize: "13px",
-      cursor: "pointer",
-      transition: "background 0.12s, border-color 0.12s, transform 0.06s",
-    });
+    Object.assign(button.style, CONTROL_BUTTON_STYLE);
     button.addEventListener("click", () => onSelect(t));
     button.addEventListener("mouseenter", () => { hoveredIndex = i; applyStyle(i); });
     button.addEventListener("mouseleave", () => {
@@ -408,6 +429,8 @@ export function createLegendRow({ label, color, getter, setter, glyphNode, onCha
     onChange();
   });
 
+  // exposed so a row sharing its toggle with another can be restyled when the other is clicked
+  row.refresh = refreshRow;
   refreshRow();
   row.appendChild(swatchSlot);
   row.appendChild(text);
