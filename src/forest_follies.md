@@ -28,7 +28,8 @@ const spriteUrls = {
 	blueberry: await FileAttachment("./data/resources/sprites/forest_follies/blueberry.png").url(),
 	acorn: await FileAttachment("./data/resources/sprites/forest_follies/acorn.png").url(),
 	acornMachine: await FileAttachment("./data/resources/sprites/forest_follies/acorn_machine.png").url(),
-	tulipBullet: await FileAttachment("./data/resources/sprites/forest_follies/tulip_bullet.png").url()
+	tulipBullet: await FileAttachment("./data/resources/sprites/forest_follies/tulip_bullet.png").url(),
+	cloud: await FileAttachment("./data/resources/sprites/forest_follies/cloud.png").url()
 };
 ```
 

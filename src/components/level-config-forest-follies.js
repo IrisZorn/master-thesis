@@ -19,6 +19,9 @@ export const FOREST_FOLLIES_LEVEL_CONFIG = {
     "0": "acorn",
     "1": "acornMachine",
     "18": "tulipBullet",
+    // both cloud colors share the one cloud sprite
+    "12": "cloud",
+    "13": "cloud",
   },
   enemyNameToType: {
     shroom: "11",
@@ -30,6 +33,8 @@ export const FOREST_FOLLIES_LEVEL_CONFIG = {
     acorn: "0",
     acorn_machine: "1",
     tulip_bullet: "18",
+    shroom_cloud_pink: "12",
+    shroom_cloud_purple: "13",
   },
   stationaryEnemyTypes: ["11", "17", "1"],
   // no fixed-horizontal enemies here (spiky_bulb/toothy both patrol a fixed vertical column,
@@ -57,14 +62,19 @@ export const FOREST_FOLLIES_LEVEL_CONFIG = {
   holdLastPositionEnemyTypes: ["14"],
   // enemy types with per-run live tracks under data[0][type] (an array of
   // point-arrays, one per enemy instance) rather than an aggregate/cache;
-  // matches constants_forest_follies.py's ENEMY_KEYS -- includes tulip_bullet ("18"), which is
-  // tracked as a full path like acorn rather than getting a bullet-direction arrow
-  trackedEnemyTypes: ["0", "14", "16", "2", "7", "11", "17", "1", "18"],
+  // matches constants_forest_follies.py's ENEMY_KEYS -- includes tulip_bullet ("18") and the
+  // shroom clouds ("12"/"13"), which are tracked as full paths like acorn rather than getting a
+  // bullet-direction arrow
+  trackedEnemyTypes: ["0", "14", "16", "2", "7", "11", "17", "1", "18", "12", "13"],
   // no JUNK/pickup distinction in constants_forest_follies.py, so this otherwise just matches
   // trackedEnemyTypes (see Wally Warbles' own countableEnemyTypes for a level where those two
   // differ because of JUNK) -- acorn ("0") is excluded on top of that, since its disappearances
-  // aren't reliably real hits, and so is tulip_bullet ("18"), a bullet rather than an enemy.
+  // aren't reliably real hits, and so are tulip_bullet ("18") and the shroom clouds ("12"/"13"),
+  // bullets rather than enemies.
   countableEnemyTypes: ["14", "16", "2", "7", "11", "17", "1"],
+  // bullets tracked as enemy paths (tulip_bullet, shroom clouds) -- their live glyph badge gets a
+  // darker turquoise than the enemies' (see ACTIVE_BULLET_COLOR in viewer-enemies.js)
+  bulletEnemyTypes: ["18", "12", "13"],
   // bullet types this level draws a current-direction arrow for (see viewer-bullets.js), keyed
   // by their raw type number. "player" bullets are anchored at whichever of cup/mug is nearest,
   // colored to match that player's own trail (see bulletPlayerPositions in visualize.js) rather
@@ -74,8 +84,6 @@ export const FOREST_FOLLIES_LEVEL_CONFIG = {
   // constants_forest_follies.py's BULLET_KEYS.
   bulletConfig: {
     "4": { owner: "player" }, // cuphead_bullet
-    "12": { owner: "enemy", enemyType: "11", color: "rgba(64, 224, 208, 0.9)" }, // shroom_cloud_pink -> shroom
-    "13": { owner: "enemy", enemyType: "11", color: "rgba(64, 224, 208, 0.9)" }, // shroom_cloud_purple -> shroom
   },
   enemyInstanceXThreshold: 170,
   // matches build_aggregate_data.py's STATIONARY_DISTANCE_THRESHOLD: the distance within
@@ -88,4 +96,6 @@ export const FOREST_FOLLIES_LEVEL_CONFIG = {
   defaultGlyphSize: { w: 68, h: 68 },
   enemySpritesFallbackKey: "cupHit",
   enemyLegendSpriteKey: null,
+  // the tulip's seed stands in for every enemy bullet (tulip_bullet, shroom clouds) in the legend
+  junkLegendSpriteKey: "tulipBullet",
 };

@@ -4,6 +4,9 @@ import { clamp, fadeOpacity, getLastTimedPoint, pointAtFraction, stageIndexAt, v
 // live (currently detected) enemies are drawn in turquoise; inactive ones in a grey that fades out
 // (also used by viewer-bullets.js for enemy bullet arrows, which grey/fade the same way)
 export const ACTIVE_ENEMY_COLOR = "rgba(64, 224, 208, 0.9)";
+// a live enemy bullet's glyph badge (see bulletEnemyTypes) -- a darker turquoise so bullets read
+// apart from the enemies themselves
+export const ACTIVE_BULLET_COLOR = "rgba(0, 105, 160, 0.9)";
 export function inactiveEnemyColor(alpha) {
   return `rgba(148, 163, 184, ${alpha.toFixed(2)})`;
 }
@@ -33,6 +36,7 @@ export function createEnemyVisualBuilder({
   neverFadeEnemyTypes = new Set(),
   holdLastPositionEnemyTypes = new Set(),
   minimizingEnemyTypes = new Set(),
+  bulletEnemyTypes = new Set(),
   minimizingChainDistance = 700,
   enemyInstanceXThreshold,
   stationaryInstanceThreshold,
@@ -90,6 +94,11 @@ export function createEnemyVisualBuilder({
   // all the way to fully invisible, instead of snapping to one fixed grey and staying there
   // forever.
   const GREY_FADE_WINDOW = greyFadeWindow(windowDelta);
+
+  // badge color of a currently-detected glyph: bullets tracked as enemies get their own shade
+  function activeGlyphColor(enemyType) {
+    return bulletEnemyTypes.has(enemyType) ? ACTIVE_BULLET_COLOR : ACTIVE_ENEMY_COLOR;
+  }
   function instanceVisibility(lastDetection) {
     if (lastDetection == null) return 0;
     const elapsed = currentTimeProvider() - lastDetection;
@@ -315,7 +324,7 @@ export function createEnemyVisualBuilder({
           const detectedNow = liveTrack ? pointAtCurrentTime(liveTrack) != null : false;
           const instanceIsActive = detectedNow || neverFadeEnemyTypes.has(enemyType);
           const visibility = instanceVisibility(lastDetection);
-          const instanceStroke = instanceIsActive ? ACTIVE_ENEMY_COLOR : inactiveEnemyColor(0.9 * visibility);
+          const instanceStroke = instanceIsActive ? activeGlyphColor(enemyType) : inactiveEnemyColor(0.9 * visibility);
           const instanceFill = instanceIsActive ? ACTIVE_ENEMY_COLOR : inactiveEnemyColor(0.8 * visibility);
 
           visuals.paths.push({ id: `enemy-fullpath-${instance.id}`, points: instance.path, stroke: instanceStroke, width: 12, glow: true });
@@ -328,7 +337,7 @@ export function createEnemyVisualBuilder({
             // actually moves along -- from the current/resting point.
             const x = isFixedHorizontal ? glyphPoint[0] : instanceFixedCoord;
             const y = isFixedHorizontal ? instanceFixedCoord : glyphPoint[1];
-            visuals.glyphs.push({ id: `enemy-glyph-fullpath-${instance.id}`, type: enemyType, x, y, color: instanceFill, opacity: instanceIsActive ? 1 : visibility });
+            visuals.glyphs.push({ id: `enemy-glyph-fullpath-${instance.id}`, type: enemyType, x, y, color: instanceIsActive ? activeGlyphColor(enemyType) : instanceFill, active: instanceIsActive, opacity: instanceIsActive ? 1 : visibility });
           }
         }
         continue;
@@ -355,7 +364,7 @@ export function createEnemyVisualBuilder({
           const instanceFill = instanceIsActive ? ACTIVE_ENEMY_COLOR : inactiveEnemyColor(0.8 * visibility);
 
           visuals.stationary.push({ id: `enemy-stationary-${enemyType}-${index}`, type: enemyType, x: anchorX, y: anchorY, color: instanceFill, active: instanceIsActive });
-          visuals.glyphs.push({ id: `enemy-glyph-${enemyType}-${index}`, type: enemyType, x: anchorX, y: anchorY, color: instanceFill, opacity: instanceIsActive ? 1 : visibility });
+          visuals.glyphs.push({ id: `enemy-glyph-${enemyType}-${index}`, type: enemyType, x: anchorX, y: anchorY, color: instanceIsActive ? activeGlyphColor(enemyType) : instanceFill, active: instanceIsActive, opacity: instanceIsActive ? 1 : visibility });
         }
       }
     }
@@ -378,10 +387,10 @@ export function createEnemyVisualBuilder({
           if (last && isLeavingMapEdge(last.point[0], last.dx)) continue;
         }
         const visibility = instanceVisibility(lastDetection);
-        const trackColor = trackIsActive ? ACTIVE_ENEMY_COLOR : inactiveEnemyColor(0.9 * visibility);
+        const trackColor = trackIsActive ? activeGlyphColor(track.type) : inactiveEnemyColor(0.9 * visibility);
         visuals.paths.push(...buildFadedTrailSegments(points, `enemy-free-${track.id}`, trackColor, 8));
         const glyphPoint = getLastTimedPoint(points);
-        if (glyphPoint) visuals.glyphs.push({ id: `enemy-glyph-live-${track.id}`, type: track.type, x: glyphPoint[0], y: glyphPoint[1], color: trackColor, label: track.index, opacity: trackIsActive ? 1 : visibility });
+        if (glyphPoint) visuals.glyphs.push({ id: `enemy-glyph-live-${track.id}`, type: track.type, x: glyphPoint[0], y: glyphPoint[1], color: trackIsActive ? activeGlyphColor(track.type) : trackColor, label: track.index, active: trackIsActive, opacity: trackIsActive ? 1 : visibility });
       }
     }
 
@@ -395,10 +404,10 @@ export function createEnemyVisualBuilder({
       }
 
       const visibility = instanceVisibility(state.lastDetection);
-      const chainColor = state.active ? ACTIVE_ENEMY_COLOR : inactiveEnemyColor(0.9 * visibility);
+      const chainColor = state.active ? activeGlyphColor(chain.type) : inactiveEnemyColor(0.9 * visibility);
       visuals.paths.push(...buildFadedTrailSegments(state.points, `enemy-free-${chain.id}`, chainColor, 8));
       const glyphPoint = getLastTimedPoint(state.points);
-      if (glyphPoint) visuals.glyphs.push({ id: `enemy-glyph-live-${chain.id}`, type: chain.type, x: glyphPoint[0], y: glyphPoint[1], color: chainColor, label: chain.index, opacity: state.active ? 1 : visibility });
+      if (glyphPoint) visuals.glyphs.push({ id: `enemy-glyph-live-${chain.id}`, type: chain.type, x: glyphPoint[0], y: glyphPoint[1], color: state.active ? activeGlyphColor(chain.type) : chainColor, label: chain.index, active: state.active, opacity: state.active ? 1 : visibility });
     }
 
     return visuals;

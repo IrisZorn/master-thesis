@@ -13,6 +13,7 @@ const SET_FIELDS = [
   "neverFadeEnemyTypes",
   "holdLastPositionEnemyTypes",
   "countableEnemyTypes",
+  "bulletEnemyTypes",
 ];
 
 export function createLevelConfig(baseConfig) {

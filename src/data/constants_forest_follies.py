@@ -55,9 +55,11 @@ MOVING_ENEMIES = {
     daisy,
     blueberry,
     acorn,
-    # a lobbed, arcing shot rather than a straight-line one (see LINEAR_BULLET_SPEEDS), so it
-    # gets a full reconstructed path like acorn instead of a current-direction arrow
+    # lobbed/drifting shots rather than straight-line ones (see LINEAR_BULLET_SPEEDS), so they
+    # get a full reconstructed path like acorn instead of a current-direction arrow
     tulip_bullet,
+    shroom_cloud_pink,
+    shroom_cloud_purple,
 }
 
 MOVING_MINIMIZING_ENEMIES = {
@@ -71,14 +73,14 @@ MOVING_MINIMIZING_ENEMIES = {
 # which makes sense for a bullet.
 BULLET_KEYS = {
     cuphead_bullet,
-    shroom_cloud_pink,
-    shroom_cloud_purple,
 }
 
 # tracked like an enemy (in ENEMY_KEYS, so the viewer draws its full path) but still a bullet, so
 # kept out of the enemy density heatmap -- see build_aggregate_data.py's aggregate_enemy_density.
 HEATMAP_EXCLUDED_ENEMIES = {
     tulip_bullet,
+    shroom_cloud_pink,
+    shroom_cloud_purple,
 }
 
 # bullet types whose real motion is a straight line at roughly constant speed, so
@@ -87,8 +89,8 @@ HEATMAP_EXCLUDED_ENEMIES = {
 # build_bullet_shots for why that matters for e.g. rapid fire). Keyed by (min_speed, max_speed)
 # in px/frame, the plausible range for a real shot of that type -- derived from forest_follies_2's
 # own clean, unambiguous single-shot cuphead_bullet tracks (~40-48px/frame observed, widened
-# slightly for margin). shroom_cloud_pink/purple and tulip_bullet (the latter now tracked as a
-# MOVING_ENEMIES path rather than a bullet) are deliberately excluded: their
+# slightly for margin). shroom_cloud_pink/purple and tulip_bullet (all now tracked as
+# MOVING_ENEMIES paths rather than bullets) are deliberately excluded: their
 # real shots arc/drift rather than moving in a constant-velocity straight line (confirmed against
 # a real tulip_bullet track -- distance from its stationary anchor rises then falls over the
 # course of one continuous, genuine shot), so this model doesn't apply to them and they keep using
